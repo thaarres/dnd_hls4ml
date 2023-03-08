@@ -55,12 +55,13 @@ def buildKeras():
 # Build quantized QKeras model    
 def buildQKeras():  
   inputs = Input(shape=[98, ], name='qinput_features')
-  x = QDense(20, kernel_quantizer=quantized_bits(6,0,alpha=1), bias_quantizer=quantized_bits(6,0,alpha=1), name='fc1')(inputs)
-  x = QActivation(activation=quantized_relu(6), name='relu1')(x)
-  x = QDense(1, kernel_quantizer=quantized_bits(6,0,alpha=1), bias_quantizer=quantized_bits(6,0,alpha=1), name='output')(x)
+  x = QDense(20, kernel_quantizer=quantized_bits(4,0,alpha=1), bias_quantizer=quantized_bits(4,0,alpha=1), name='fc1')(inputs)
+  x = QActivation(activation=quantized_relu(4), name='relu1')(x)
+  x = QDense(1, kernel_quantizer=quantized_bits(4,0,alpha=1), bias_quantizer=quantized_bits(4,0,alpha=1), name='output')(x)
   x = Activation(activation="sigmoid", name='output_act')(x)
+  # x = QActivation("quantized_relu(bits=16,integer=0,use_sigmoid=1)", name='output_act')(x)
   model = Model(inputs, x)  
-
+  model.load_weights('4bitMLPmodel.h5')
   optimizer = Adam(learning_rate=0.001)
   model.compile(optimizer, loss='mean_squared_error', metrics=['accuracy'])
   model.summary()
@@ -68,6 +69,7 @@ def buildQKeras():
   # Synthesise
   config = hls4ml.utils.config_from_keras_model(model, granularity='name',default_reuse_factor=1)
   config['Model']['Strategy'] = 'Latency'
+  config['LayerName']['fc1']['Strategy'] = 'Resource'
   print("-----------------------------------")
   print("Configuration")
   print_dict(config)
