@@ -38,17 +38,27 @@ def buildKeras():
   model.summary()
 
   # Synthesise
+
+
   config = hls4ml.utils.config_from_keras_model(model, granularity='model',default_reuse_factor=1, default_precision='ap_fixed<16,6>')
   config['Model']['Strategy'] = 'Latency'
   print("-----------------------------------")
   print("Configuration")
   print_dict(config)
   print("-----------------------------------")
-  hls_model = hls4ml.converters.convert_from_keras_model(model,
-                                                         hls_config=config,
-                                                         output_dir='/mnt/data/thaarres/dnd/keras_model/hls4ml_prj',
-                                                         backend='Vivado',
-                                                         part='xczu9eg-ffvb1156-2-e')                                                   
+  cfg = hls4ml.converters.create_config(backend='Vivado')
+  cfg['HLSConfig']  = config
+  cfg['KerasModel'] = model
+  cfg['OutputDir']  = '/mnt/data/thaarres/dnd/keras_model/hls4ml_prj'
+  cfg['XilinxPart'] = 'xczu9eg-ffvb1156-2-e'
+  cfg['ClockPeriod'] = 10
+  print_dict(cfg)
+  hls_model = hls4ml.converters.keras_to_hls(cfg)
+  # hls_model = hls4ml.converters.convert_from_keras_model(model,
+  #                                                        hls_config=config,
+  #                                                        output_dir='/mnt/data/thaarres/dnd/keras_model/hls4ml_prj',
+  #                                                        backend='Vivado',
+  #                                                        part='xczu9eg-ffvb1156-2-e')                                                   
   hls_model.compile()
   hls_model.build(csim=False, synth=True, vsynth=True)
 
@@ -58,8 +68,8 @@ def buildQKeras():
   x = QDense(20, kernel_quantizer=quantized_bits(4,0,alpha=1), bias_quantizer=quantized_bits(4,0,alpha=1), name='fc1')(inputs)
   x = QActivation(activation=quantized_relu(4), name='relu1')(x)
   x = QDense(1, kernel_quantizer=quantized_bits(4,0,alpha=1), bias_quantizer=quantized_bits(4,0,alpha=1), name='output')(x)
-  x = Activation(activation="sigmoid", name='output_act')(x)
-  # x = QActivation("quantized_relu(bits=16,integer=0,use_sigmoid=1)", name='output_act')(x)
+  # x = Activation(activation="sigmoid", name='output_act')(x)
+  x = QActivation("quantized_relu(bits=16,integer=0,use_sigmoid=1)", name='output_act')(x)
   model = Model(inputs, x)  
   model.load_weights('4bitMLPmodel.h5')
   optimizer = Adam(learning_rate=0.001)
@@ -74,11 +84,19 @@ def buildQKeras():
   print("Configuration")
   print_dict(config)
   print("-----------------------------------")
-  hls_model = hls4ml.converters.convert_from_keras_model(model,
-                                                         hls_config=config,
-                                                         output_dir='/mnt/data/thaarres/dnd/qkeras_model/hls4ml_prj',
-                                                         backend='Vivado',
-                                                         part='xczu9eg-ffvb1156-2-e')                                                       
+  cfg = hls4ml.converters.create_config(backend='Vivado')
+  cfg['HLSConfig']  = config
+  cfg['KerasModel'] = model
+  cfg['OutputDir']  = '/mnt/data/thaarres/dnd/qkeras_model/hls4ml_prj'
+  cfg['Part'] = 'xc7z100-ffg900-2'
+  cfg['ClockPeriod'] = 10
+  print_dict(cfg)
+  hls_model = hls4ml.converters.keras_to_hls(cfg)
+  # hls_model = hls4ml.converters.convert_from_keras_model(model,
+  #                                                        hls_config=config,
+  #                                                        output_dir='/mnt/data/thaarres/dnd/qkeras_model/hls4ml_prj',
+  #                                                        backend='Vivado',
+  #                                                        part='xc7z100-ffg900-2')                                                       
   hls_model.compile()
   # hls_model.build(reset=False, csim=False, synth=True, cosim=True, validation=True, export=True, vsynth=True)
   hls_model.build(csim=False, synth=True, vsynth=True)
